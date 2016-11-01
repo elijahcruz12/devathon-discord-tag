@@ -12,12 +12,9 @@ import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.Validate;
 
 import java.io.File;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
 
 /**
  * OutdatedVersion
@@ -32,7 +29,6 @@ public class DevathonTagApplier extends ListenerAdapter
 
     private static final char COMMAND_PREFIX = '!';
     private static final LocalDateTime STARTING_AT = LocalDateTime.of(2016, Month.NOVEMBER, 5, 12, 0);
-    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("M.d.y-h.m-a");
 
     private final JDA jda;
     private final Checker checker;
@@ -156,7 +152,12 @@ public class DevathonTagApplier extends ListenerAdapter
      */
     private SimpleLog setupLogger() throws Exception
     {
-        SimpleLog.addFileLog(SimpleLog.Level.INFO, new File("devathon-" + DATE_FORMAT.format(new Date()) + ".log"));
+        final File _file = new File("devathon.log");
+
+        if (!_file.exists())
+            _file.createNewFile();
+
+        SimpleLog.addFileLogs(_file, _file);
 
         return SimpleLog.getLog("Devathon");
     }
