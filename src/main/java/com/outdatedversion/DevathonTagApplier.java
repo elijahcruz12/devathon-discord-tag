@@ -2,14 +2,22 @@ package com.outdatedversion;
 
 import net.dv8tion.jda.JDA;
 import net.dv8tion.jda.JDABuilder;
-import net.dv8tion.jda.entities.*;
+import net.dv8tion.jda.entities.Guild;
+import net.dv8tion.jda.entities.Role;
+import net.dv8tion.jda.entities.TextChannel;
+import net.dv8tion.jda.entities.User;
 import net.dv8tion.jda.events.message.guild.GuildMessageReceivedEvent;
 import net.dv8tion.jda.hooks.ListenerAdapter;
+import net.dv8tion.jda.utils.SimpleLog;
 import org.apache.commons.lang3.Validate;
 
+import java.io.File;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
 import java.time.Month;
 import java.time.temporal.ChronoUnit;
+import java.util.Date;
 
 /**
  * OutdatedVersion
@@ -22,14 +30,21 @@ public class DevathonTagApplier extends ListenerAdapter
     // Discord bot auth:
     // https://discordapp.com/api/oauth2/authorize?client_id=242502184195850241&scope=bot&permissions=268438528
 
-    private final char COMMAND_PREFIX = '!';
-    private final LocalDateTime STARTING_AT = LocalDateTime.of(2016, Month.NOVEMBER, 5, 12, 0);
+    private static final char COMMAND_PREFIX = '!';
+    private static final LocalDateTime STARTING_AT = LocalDateTime.of(2016, Month.NOVEMBER, 5, 12, 0);
+    private static final DateFormat DATE_FORMAT = new SimpleDateFormat("M.d.y-h.m-a");
 
     private final JDA jda;
     private final Checker checker;
+    private final SimpleLog logger;
 
+    /** the channel that we're processing requests from */
     private TextChannel channel;
+
+    /** the Discord server we're operating from */
     private Guild guild;
+
+    /** the {@link Role} that we apply to users */
     private Role contestantRole;
 
     /**
@@ -45,6 +60,7 @@ public class DevathonTagApplier extends ListenerAdapter
     public DevathonTagApplier(final String[] args) throws Exception
     {
         checker = new Checker();
+        logger = setupLogger();
 
         jda = new JDABuilder()
                     .setBotToken(args[0])
@@ -66,6 +82,8 @@ public class DevathonTagApplier extends ListenerAdapter
                               .stream()
                               .findFirst()
                               .orElseThrow(() -> new NullPointerException("We couldn't find a role matching " + args[3]));
+
+        logger.info("Listening on channel by the name of '" + channel.getName() + "'");
     }
 
     @Override
@@ -83,12 +101,20 @@ public class DevathonTagApplier extends ListenerAdapter
         {
             case "role":
             {
+                if (guild.getRolesForUser(_sentBy).contains(contestantRole))
+                {
+                    mention(_sentBy, "you're already a participant.");
+                    return;
+                }
+
                 checker.check(_split.length >= 2 ? _split[1] : _sentBy.getUsername(), exists ->
                 {
                     if (exists)
                     {
                         guild.getManager().addRoleToUser(_sentBy, contestantRole).update();
                         mention(_sentBy, "thanks for participating! Your role has been applied.");
+
+                        logger.info("Applied [" + contestantRole.getName() + "] to " + _sentBy.getUsername() + "#" + _sentBy.getDiscriminator());
                     }
                     else
                         mention(_sentBy, "you don't seem to be apart of Devathon. Please rerun this command w/ the correct username, or use `!register`.");
@@ -111,11 +137,31 @@ public class DevathonTagApplier extends ListenerAdapter
         }
     }
 
+    /**
+     * send a message to the channel already
+     * preset to mention the provided {@link User}.
+     *
+     * @param user the user to mention
+     * @param message the content of the
+     *                remaining message
+     */
     private void mention(User user, String message)
     {
         channel.sendMessage(user.getAsMention() + ", " + message);
     }
 
+    /**
+     * setup the JDA logging framework
+     * thing to output to a file
+     */
+    private SimpleLog setupLogger() throws Exception
+    {
+        SimpleLog.addFileLog(SimpleLog.Level.INFO, new File("devathon-" + DATE_FORMAT.format(new Date()) + ".log"));
+
+        return SimpleLog.getLog("Devathon");
+    }
+
+    /** app entry */
     public static void main(String[] args) throws Exception
     {
         new DevathonTagApplier(args);

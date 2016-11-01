@@ -14,23 +14,36 @@ import java.util.function.Consumer;
 public class Checker
 {
 
-    private final ExecutorService executorService;
+    /** asynchronously run requests */
+    private final ExecutorService executor;
 
+    /**
+     * in charge of handling requests
+     * to the Devathon site.
+     */
     public Checker()
     {
-        executorService = Executors.newCachedThreadPool();
+        executor = Executors.newCachedThreadPool();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(executorService::shutdown));
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
     }
 
+    /**
+     * check if there's account bound to the
+     * provided username.
+     *
+     * @param username the username we're checking
+     * @param exists whether or not an account exists
+     *               for the provided name.
+     */
     public void check(String username, Consumer<Boolean> exists)
     {
-        executorService.submit(() ->
+        executor.submit(() ->
         {
             try
             {
                 exists.accept(!Jsoup.connect("https://devathon.org/user/" + username)
-                                    .userAgent("Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:49.0) Gecko/20100101 Firefox/49.0")
+                                    .userAgent("Mozilla/5.0 (Discord Role Checker)")
                                     .get().location().contains("error"));
             }
             catch (Exception ex)
